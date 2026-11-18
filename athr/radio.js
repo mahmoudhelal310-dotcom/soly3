@@ -67,11 +67,19 @@
     });
   }
   function stopAudio(a) { try { a.onerror = a.oncanplay = a.onloadeddata = null; a.pause(); a.removeAttribute('src'); a.load(); } catch { /* */ } }
+  // رابط خدمة التحويل الخاصة بك (انظر ملف radio-worker.js): ضع هنا عنوان الخدمة منتهياً بـ ?id=
+  const RESOLVER = 'https://quran-radio.mahmoudhelal310.workers.dev/?id=';
   async function resolveJar(url, force) {
     const m = /^https:\/\/stream\.radiojar\.com\/([a-z0-9]+)/i.exec(url);
     if (!m) return url;
-    const id = m[1], ck = 'radio:node:' + id, c = store.get(ck);
-    if (!force && c && c.u && Date.now() - c.t < 3 * 864e5) return c.u;
+    const id = m[1];
+    if (RESOLVER) {
+      try { const j = await (await fetch(RESOLVER + id, { cache: 'no-store' })).json(); if (j && j.url) return j.url; } catch { /* */ }
+      return url;
+    }
+    // بدون خدمة تحويل: المحاولة الأولى مباشرة دون انتظار، وعند الفشل (force) نجرّب عناوين الخوادم الآمنة
+    const ck = 'radio:node:' + id, c = store.get(ck);
+    if (!force) return (c && c.u && Date.now() - c.t < 3 * 864e5) ? c.u : url;
     const cands = [url].concat(Array.from({ length: 12 }, (_, i) => `https://n${String(i + 1).padStart(2, '0')}.radiojar.com/${id}`));
     const bag = [];
     const win = await new Promise((res) => {
